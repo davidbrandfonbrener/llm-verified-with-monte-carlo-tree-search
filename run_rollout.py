@@ -104,6 +104,9 @@ def main(mins_timeout=None, prompt=prompt):
     montecarlo.root_node.add_child(widen)
     widen.update_policy_value(0.2)
     
+    # Add initial visit to root to prevent error
+    montecarlo.root_node.visits = 1
+    
     # Update montecarlo
     montecarlo.child_finder = child_finder
     montecarlo.rollout_func = rollout_func
