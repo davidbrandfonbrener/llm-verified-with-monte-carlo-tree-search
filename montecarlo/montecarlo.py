@@ -46,7 +46,6 @@ class MonteCarlo:
         start_time = time.time()
 
         while expansion_count is None or i < expansion_count:
-            print("expansion count: ", expansion_count)
             print("i: ", i)
             i += 1
 
@@ -63,7 +62,10 @@ class MonteCarlo:
 
             current_node = self.root_node
 
+            j = 0
             while current_node.expanded:
+                print("j: ", j)
+                j += 1
                 current_node = current_node.get_preferred_child(self.root_node)
 
             self.expand(current_node)
