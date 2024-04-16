@@ -58,6 +58,7 @@ def generate_complete_whole(text, montecarlo, current_completion_depth=1):
 
 
 def child_finder(node, montecarlo):
+    assert not node.is_widen_node
     if limit_depth(node):
         return
 
@@ -105,7 +106,7 @@ def main(mins_timeout=None, prompt=prompt):
     widen.update_policy_value(0.2)
     
     # Add initial visit to root to prevent error
-    montecarlo.root_node.visits = 1
+    # montecarlo.root_node.visits = 1
     
     # Update montecarlo
     montecarlo.child_finder = child_finder

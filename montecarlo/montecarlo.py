@@ -46,6 +46,8 @@ class MonteCarlo:
         start_time = time.time()
 
         while expansion_count is None or i < expansion_count:
+            print("expansion count: ", expansion_count)
+            print("i: ", i)
             i += 1
 
             if self.solution is not None:
