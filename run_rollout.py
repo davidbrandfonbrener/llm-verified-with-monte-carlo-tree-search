@@ -34,6 +34,8 @@ def rollout_func(node, montecarlo):
     gen_stat = {f"rollout-{k}": v for k, v in gen_stat.items()}
     common_wandb.log(gen_stat)
 
+    node.update_win_value(2 * int(text is not None) - 1)
+
 
 def generate_complete_whole(text, montecarlo, current_completion_depth=1):
     if current_completion_depth >= max_completion_depth:
@@ -85,7 +87,9 @@ def child_finder(node, montecarlo):
 
         child = Node(text)
         node.add_child(child)
-        # Note: no value added to the node so as to trigger a rollout
+        # Note: decrement visit count to trigger a rollout, but mark parents visited
+        child.update_win_value(0)
+        child.visits -= 1
 
         widen = Node(text)
         widen.is_widen_node = True
@@ -106,7 +110,7 @@ def main(mins_timeout=None, prompt=prompt):
     widen.update_policy_value(0.2)
     
     # Add initial visit to root to prevent error
-    # montecarlo.root_node.visits = 1
+    montecarlo.root_node.update_win_value(0)
     
     # Update montecarlo
     montecarlo.child_finder = child_finder

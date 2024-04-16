@@ -61,11 +61,7 @@ class MonteCarlo:
 
             current_node = self.root_node
 
-            j = 0
             while current_node.expanded:
-                j += 1
-                import ipdb
-                ipdb.set_trace()
                 current_node = current_node.get_preferred_child(self.root_node)
 
             self.expand(current_node)
