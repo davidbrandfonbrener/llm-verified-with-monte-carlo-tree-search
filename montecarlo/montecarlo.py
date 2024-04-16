@@ -11,6 +11,7 @@ class MonteCarlo:
         self.stats_expansion_count = 0
         self.stats_failed_expansion_count = 0
         self.mins_timeout = mins_timeout
+        self.rollout_func = None
 
     def make_choice(self):
         best_children = []
@@ -85,6 +86,10 @@ class MonteCarlo:
             self.stats_failed_expansion_count += 1
 
     def random_rollout(self, node):
+        if self.rollout_func is not None:
+            self.rollout_func(node, self)
+            return
+        
         self.child_finder(node, self)
         child = random.choice(node.children)
         node.children = []

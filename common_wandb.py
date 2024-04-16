@@ -56,3 +56,7 @@ def compute_summary(montecarlo, node_dups_counter, init_time):
         final_stat = {f"final/{k}": v for k, v in final_stat.items()}
         stat = {**stat, **final_stat}
         wandb.log(stat)
+
+def log(stats):
+    if args.use_wandb:
+        wandb.log
