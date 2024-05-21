@@ -16,7 +16,7 @@ class CommonArguments:
     custom_stop: bool = field(default=True, metadata={"help": "Set to True to use custom stop words"})
     same_for_many_samples: bool = field(default=True, metadata={"help": "Sample the same whether generating one or many samples"})
     beam_search: bool = field(default=False, metadata={"help": "Set to True to use beam search instead of sampling"})
-    model_arg_topk: float = field(default=None, metadata={"help": "Specify top k parameter for llm generation"})
+    model_arg_topk: int = field(default=None, metadata={"help": "Specify top k parameter for llm generation"})
     model_arg_topp: float = field(default=None, metadata={"help": "Specify top p parameter for llm generation"})
     model_arg_temp: float = field(default=None, metadata={"help": "Specify temperature parameter for llm generation"})
     problem_name: str = field(default="problem_opt0", metadata={"help": "Choose which problem to solve from `prompts.py` "})
@@ -45,6 +45,8 @@ class CommonArguments:
     wandb_project: str = field(default="vmcts", metadata={"help": "Project for the wandb run"})
     wandb_group: str = field(default="debug", metadata={"help": "Group for the wandb run"})
     wandb_name: str = field(default=None, metadata={"help": "Name the wandb run"})
+    discovery_factor: float = field(default=0.35, metadata={"help": "Hyperparameter: discovery factor"})
+    widen_policy_value: float = field(default=0.2, metadata={"help": "Hyperparameter: widen policy value"})
 
     def dict(self):
         return {k: str(v) for k,v in asdict(self).items()}

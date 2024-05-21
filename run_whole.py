@@ -13,7 +13,7 @@ from common_cache import create_cached_func
 
 score_func, cache_stats, reset_cache = create_cached_func(uncached_score_func)
 
-from prompts import prompt, min_lines, check_func
+from prompts import prompt, min_lines, check_func, check_string
 
 import llm
 
@@ -33,17 +33,19 @@ def attempt(prompt=prompt, attempt_id=0):
     attempt_stats = {"attempt_id": attempt_id}
     init_n_tokens = llm.token_counter
     init_time = time.time()
-    if GREEDY:
-        text = llm.generate_full(prompt)
-    else:
-        text = llm.generate_full(
-            prompt, do_sample=True, top_p=0.9, top_k=7, temperature=0.8
-        )
+    text = llm.generate_full(prompt)
+    # Args are handled inside of llm.py
+    # if GREEDY:
+    #     text = llm.generate_full(prompt)
+    # else:
+    #     text = llm.generate_full(
+    #         prompt, do_sample=True, top_p=0.9, top_k=7, temperature=0.8
+    #     )
     score = score_func(text)
     is_solution = (
         score is not None
         and score > 0
-        and can_be_solution_whole(text, min_lines, check_func)
+        and can_be_solution_whole(text, min_lines, check_func, check_string)
     )
     score_sign = 0 if score is None else (1 if score > 0 else -1)
     attempt_stats["time"] = time.time() - init_time

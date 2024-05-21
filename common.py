@@ -1,9 +1,9 @@
 from prompts import max_depth
+import llm
+
 from cmdline import args
 
 max_completion_depth = args.max_completion_depth
-
-# max_completion_depth = 30
 
 
 def count_depth(node, f=lambda x: x):
@@ -18,10 +18,25 @@ def count_depth(node, f=lambda x: x):
     return depth
 
 
+# Prevents models from attempting to expand children past the EOS token
+def string_contains_eos(node, f=lambda x: x):
+    return llm.eos_token in f(node.state)
+
+
 def limit_depth(node, f=lambda x: x):
     if max_depth is not None:
         depth = count_depth(node, f)
-        if depth >= max_depth:
-            node.update_win_value(-max_depth)
+        if depth >= max_depth or string_contains_eos(node, f):
+            node.update_win_value(-1)  # Penalize node as a loss
             return True
     return False
+
+
+def limit_tokens():
+    print("Token limit: ", args.token_limit, " Token count: ", llm.token_counter)
+    # Force montecarlo to exit if token limit is reached by setting solution
+    # Note: call this at the end of child finder
+    if args.token_limit is not None and llm.token_counter > args.token_limit:
+        return True
+    else:
+        return False

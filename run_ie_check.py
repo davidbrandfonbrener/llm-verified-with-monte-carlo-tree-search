@@ -1,7 +1,7 @@
 from montecarlo.node import Node
 from montecarlo.montecarlo import MonteCarlo
 
-from lang import can_be_solution
+from lang import can_be_solution, filter_code
 from lang import score_func as uncached_score_func
 
 from common_cache import create_cached_func
@@ -9,11 +9,13 @@ from common_cache import create_cached_func
 score_func, cache_stats, reset_cache = create_cached_func(uncached_score_func)
 from common_interactive import diffprompt
 
-from prompts import prompt, min_lines, expansion_count, check_func, check_string
+from prompts import prompt, min_lines, expansion_count, check_func, sanity_check
 from common import limit_depth, max_completion_depth, limit_tokens
 from common_stats import stats
 
 import llm
+
+import wandb
 
 import time
 
@@ -36,7 +38,7 @@ def generate_complete(text, montecarlo, current_completion_depth=1):
         if score < 0:
             return None, current_completion_depth
         else:
-            if can_be_solution(text, min_lines, check_func, check_string):
+            if can_be_solution(text, min_lines, check_func):
                 montecarlo.solution = text
             return text, current_completion_depth
     else:
@@ -90,9 +92,9 @@ def child_finder(node, montecarlo):
         print("Token limit reached, no solution found")
 
 
-def main(mins_timeout=None, prompt=prompt):
+def main_iter(prompt):
     init_time = time.time()
-    montecarlo = MonteCarlo(Node(prompt), mins_timeout)
+    montecarlo = MonteCarlo(Node(prompt))
     # Add widen node to root
     widen = Node(prompt)
     widen.is_widen_node = True
@@ -106,14 +108,39 @@ def main(mins_timeout=None, prompt=prompt):
 
     common_wandb.compute_summary(montecarlo, node_dups_counter, init_time)
 
-    print("CHOSEN SOLUTION")
-    print(montecarlo.solution)
-
     stats(montecarlo)
     print("cache stats", cache_stats)
 
-    return cache_stats
+    if montecarlo.solution:
+        text = montecarlo.solution
 
+        print("CHOSEN SOLUTION")
+        print(text)
+        
+        return text
+    return None
+
+
+def main():
+    my_prompt = prompt
+    pending = sanity_check
+
+    while True:
+        print("\n\n\nNext round")
+        my_prompt = main_iter(my_prompt)
+        if my_prompt is None:
+            wandb.log({"checks_missing": len(pending) + 1})
+            print("FAILURE; aborting")
+        if len(pending) == 0:
+            break
+        my_prompt = "```dafny\n" + filter_code(my_prompt) + "```\n\n### PROMPT: " + pending[0]
+        pending = pending[1:]
+
+    if args.use_wandb:
+        wandb.log({"checks_missing": len(pending)})
+    print("all done")
+    print("FINAL RESULT")
+    print(my_prompt)
 
 if __name__ == "__main__":
     main()

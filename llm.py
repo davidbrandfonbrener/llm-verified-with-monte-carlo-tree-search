@@ -1,33 +1,15 @@
 from model_config import MODEL_HOST
 from typing import List
 from cmdline import args
-import sys
 
 token_counter = 0
 
 
-def handle_token_limit(new_tokens):
+def increment_token_counter(new_tokens):
     assert new_tokens >= 0
     global token_counter
     token_counter += new_tokens
-    if args.token_limit is not None:
-        print(
-            "generated",
-            new_tokens,
-            "tokens, new count: ",
-            token_counter,
-            "/",
-            args.token_limit,
-        )
-        if token_counter > args.token_limit:
-            print("Exceeded token limit.")
-            print("Ending the generation prematurely.")
-            sys.exit(1)
-
-
-def final_report():
-    if args.token_limit is not None:
-        print("Success with token_counter = ", token_counter)
+    print("Current token count = ", token_counter)
 
 
 if MODEL_HOST == "openai":
@@ -53,15 +35,29 @@ elif MODEL_HOST == "huggingface":
         tokenizer
     )
 
+    # Needed to find end/beginning of sequence
+    eos_token = tokenizer.eos_token
+    bos_token = tokenizer.bos_token
+
+    # Needed to keep strings looking normal
+    def strip_bos(s):
+        while s.startswith(bos_token):
+            s = s[len(bos_token) :]
+        return s.lstrip()
+
     def gen(
         prompt, model_generation_args, num=1, return_hiddens=False, **kwargs
     ) -> List[str]:
         args = {**model_generation_args, **kwargs}
         num = num or 1
         model_input = tokenizer(prompt, return_tensors="pt").to("cuda")
+
         def helper(tid):
             return tid not in tokenizer.all_special_ids
-        input_ntokens = sum(sum(helper(tid) for tid in t) for t in model_input["input_ids"])
+
+        input_ntokens = sum(
+            sum(helper(tid) for tid in t) for t in model_input["input_ids"]
+        )
         model.eval()
         with torch.no_grad():
             generate_dict = model.generate(
@@ -69,15 +65,17 @@ elif MODEL_HOST == "huggingface":
                 num_return_sequences=num,
                 output_hidden_states=return_hiddens,
                 return_dict_in_generate=True,
-                stopping_criteria=huggingface_generate.get_stopping_criteria(tokenizer, model_input["input_ids"].size(1)),
+                stopping_criteria=huggingface_generate.get_stopping_criteria(
+                    tokenizer, model_input["input_ids"].size(1)
+                ),
                 use_cache=True,
                 **args
             )
             ts = generate_dict.sequences
 
             ntokens = sum(sum(helper(tid) for tid in t) for t in ts)
-            handle_token_limit(ntokens - input_ntokens)
-            rs = [tokenizer.decode(t, skip_special_tokens=True) for t in ts]
+            increment_token_counter(ntokens - input_ntokens)
+            rs = [strip_bos(tokenizer.decode(t, skip_special_tokens=False)) for t in ts]
         if return_hiddens:
             # Select features for last token by ignoring padding tokens
             eos_idxs = []
@@ -108,13 +106,20 @@ elif MODEL_HOST == "huggingface":
 
     def generate_full(prompt: str, **kwargs) -> str:
         streamer = TextStreamer(tokenizer)
+        model_generation_search_args = (
+            huggingface_generate.get_model_generation_search_args(1)
+        )
+        model_input = tokenizer(prompt, return_tensors="pt").to("cuda")
+        input_ntokens = model_input["input_ids"].size(1)
         all_args = {
             **(dict(streamer=streamer, max_new_tokens=10000)),  # NOTE: used to be 1000
             "return_dict_in_generate": True,
+            "stopping_criteria": huggingface_generate.get_stopping_criteria_full(
+                tokenizer, model_input["input_ids"].size(1)
+            ),
+            **model_generation_search_args,
             **kwargs,
         }
-        model_input = tokenizer(prompt, return_tensors="pt").to("cuda")
-        input_ntokens = model_input["input_ids"].size(1)
         model.eval()
         r = None
         with torch.no_grad():
@@ -125,8 +130,8 @@ elif MODEL_HOST == "huggingface":
                 return tid not in tokenizer.all_special_ids
 
             ntokens = sum(sum(helper(tid) for tid in t) for t in ts)
-            handle_token_limit(ntokens - input_ntokens)
-            r = tokenizer.decode(ts[0], skip_special_tokens=True)
+            increment_token_counter(ntokens - input_ntokens)
+            r = strip_bos(tokenizer.decode(ts[0], skip_special_tokens=False))
         return r
 
 else:
